@@ -1,3 +1,9 @@
+/*
+@version: 1.0.0
+@author: Sudheer K. <scifi1947 at gmail.com>
+@license: GNU General Public License
+*/
+
 // Navigation pane project template
 #include "MarketsToday.hpp"
 
