@@ -14,7 +14,8 @@ function reloadQuotes(){
     var query = getQuery();
     if (query){                
         //var queryURL = 'http://query.yahooapis.com/v1/public/yql?q=select Symbol,Name,LastTradePriceOnly,Change,ChangeinPercent,Volume,MarketCapitalization from yahoo.finance.quotes where symbol in ("^IXIC","^GSPC","CLJ11.NYM","YHOO","AAPL","GOOG","MSFT")&env=store://datatables.org/alltableswithkeys';
-        var queryURL = 'http://query.yahooapis.com/v1/public/yql?q=select Symbol,Name,LastTradePriceOnly,Change,ChangeinPercent,Volume,MarketCapitalization from yahoo.finance.quotes where symbol in ('+query+')&env=store://datatables.org/alltableswithkeys';
+    	//var queryURL = 'http://download.finance.yahoo.com/d/quotes.csv?s=INDU+^IXIC+^GSPC+CLJ11.NYM+YHOO+AAPL+GOOG+MSFT+ACT&f=snl1c1p2vj1&e=.csv';
+        var queryURL = 'http://download.finance.yahoo.com/d/quotes.csv?s='+query+'&f=snl1c1p2vj1&e=.csv';
         console.log("Reloading Data with URL: "+queryURL);
         
         
@@ -47,10 +48,10 @@ function getQuery(){
             console.log("Appending "+symbolsArray[i]+ " to Query");
 
             if (!query){
-                query = '"'+symbolsArray[i]+'"';
+                query = symbolsArray[i];
             }
             else{
-                query = query + ',"' + symbolsArray[i]+'"';
+                query = query + '+' + symbolsArray[i];
             }
         }
     }
@@ -89,96 +90,53 @@ function reloadNews(){
 function refreshDataModel(response){
 	   activityIndicator.stop();
 	   var status = false;   
-	   if (!response.responseXML) {
-	       //This shouldn't happen
+	   if (!response.responseText) {
 	       strErrorMessage = "Error occurred while loading stock quotes.";
-	       if (response.responseText)
-	            console.log(response.responseText);
-	        else
-	        	console.log("No responseXML for quotes");
-	        return status;
+	       console.log("No responseText for quotes");
+	       return status;
 	    }
-
-	    var xmlDoc = response.responseXML.documentElement;
-	    var results = xmlDoc.firstChild;
-
-	    //Not the best code I ever wrote, but got no choice
-	    //Refer to Memory leak issue with XMLListModel --> http://bugreports.qt.nokia.com/browse/QTBUG-15191
-
-	    if (results) {
-	        var quoteNodes = results.childNodes;
-	        if (quoteNodes && quoteNodes.length > 0){
+	   else{
+		   //snl1c1p2vj1
+		   var quoteDetails = CSVUtility.csvToArray(response.responseText.trim());
+		   var i = 0;
+	        if (quoteDetails && quoteDetails.length > 0){
 	            console.log("Clearing Data Model");
 	            groupDataModel.clear();
 
-	            var i = 0;
-	            for (i = 0; i < quoteNodes.length; i++) {
+	            for (i = 0; i < quoteDetails.length; i++){
 
-	                var quoteElements = quoteNodes[i].childNodes;
-	                var j = 0;
 	                var symbol,stockName,lastTradedPrice,change,changePercentage,volume,marketCap;
+	                symbol = quoteDetails[i][0];
+	                stockName = quoteDetails[i][1];
+	                lastTradedPrice = quoteDetails[i][2];
+	                change = (quoteDetails[i][3] !== 'N/A')? quoteDetails[i][3]:'';
+	                changePercentage = (quoteDetails[i][4] !== 'N/A')? quoteDetails[i][4]:'';
+	                volume = (quoteDetails[i][5] !== 'N/A')? quoteDetails[i][5]:'';
+	                marketCap = (quoteDetails[i][6] !== 'N/A')? quoteDetails[i][6]:'';
 
-	                for (j = 0; j < quoteElements.length; j++){
-
-	                    switch (quoteElements[j].nodeName){
-	                        case 'Symbol':
-	                            symbol = quoteElements[j].childNodes[0].nodeValue;
-	                            break;
-	                        case 'Name':
-	                            stockName = quoteElements[j].childNodes[0].nodeValue;
-	                            break;
-	                        case 'LastTradePriceOnly':
-	                            lastTradedPrice = quoteElements[j].childNodes[0].nodeValue;
-	                            break;
-	                        case 'Change':
-	                            change = (quoteElements[j].childNodes[0])? quoteElements[j].childNodes[0].nodeValue:"";
-	                            break;
-	                        case 'ChangeinPercent':
-	                            changePercentage = (quoteElements[j].childNodes[0])? quoteElements[j].childNodes[0].nodeValue:"";
-	                            break;
-	                        case 'Volume':
-	                            volume = (quoteElements[j].childNodes[0])? quoteElements[j].childNodes[0].nodeValue:"";
-	                            break;
-	                        case 'MarketCapitalization':
-	                            marketCap = (quoteElements[j].childNodes[0])? quoteElements[j].childNodes[0].nodeValue:"";
-	                            break;
-	                        default:
-	                    }
-	                }
-	                
 	                groupDataModel.insert(
 	                		{"symbol":symbol,"stockName":stockName,"lastTradedPrice":lastTradedPrice,"change":change,"changePercentage":changePercentage,"volume":volume,"marketCap":marketCap});
 	                //console.log("Symbol: "+symbol+", Name: "+ stockName+", LastTraded: "+lastTradedPrice+", Change: "+change+", ChangePercent: "+changePercentage+", Volume: "+volume+", MarketCap: "+marketCap);
 	            }
 
 	            status = true;
+	            var timeNow = new Date();
+	            try{
+	                lastUpdatedTimeStamp = "Updated: "+DateLib.ISODate.format(timeNow);
+	                console.log(lastUpdatedTimeStamp);
+	            }
+	            catch(exception){
+	                console.log("Error occured while converting timestamp");
+	                console.log(exception);
+	            }
 	        }
 	        else
 	        {
-	            strErrorMessage = "Quotes could not be fetched from Yahoo! Finance. Please verify the stock symbols and try again later.";
-	            console.log(strErrorMessage + "\n "+response.responseText);
+	            strErrorMessage = "Quotes could not be fetched from Yahoo! Finance. Please verify the tickers and try again later.";
+	            console.log(response.responseText);
 	            status = false;
-	        }
-	    }
-	    else{
-	        strErrorMessage = "Stock quote data from Yahoo! Finance is currently not available. Please try again later.";
-	        console.log(strErrorMessage + "\n "+response.responseText);
-	        status = false;
-	    }
-
-
-	    var queryNode = xmlDoc;
-	    if (queryNode) {
-	        i = 0;
-	        var queryAttributes = queryNode.attributes;
-	        for (i = 0; i < queryAttributes.length; i++) {
-	            if (queryAttributes[i].name == 'created') {
-	                lastUpdatedTimeStamp = "Updated: "+DateLib.ISODate.format(queryAttributes[i].value);
-	                console.log(lastUpdatedTimeStamp);
-	                break;
-	            }
-	        }
-	    }
+	        }		   
+	   }
 
 	    return status;
 }
@@ -187,7 +145,7 @@ function refreshNewsModel(response){
     var status = false;
     if (!response.responseXML) {
         //This shouldn't happen
-        strErrorMessage = "Error occurred while loading news."
+        strErrorMessage = "Error occurred while loading news.";
         if (response.responseText)
             console.log(response.responseText);
         else

@@ -7,6 +7,7 @@
 // Page with details of the selected stock
 
 import bb.cascades 1.0
+import "js/CSVUtility.js" as CSVUtility
 
 Page {
     property string symbol: ""
@@ -206,12 +207,12 @@ Page {
             loadNews();       
         }
         function loadDetails(){
-            var queryURL = 'http://query.yahooapis.com/v1/public/yql?q=select Symbol,Name,LastTradePriceOnly,LastTradeDate,LastTradeTime,Change,ChangeinPercent,DaysRange,YearRange,Volume,PreviousClose,MarketCapitalization from yahoo.finance.quotes where symbol in ("'+selectedSymbol+'")&env=store://datatables.org/alltableswithkeys';
+            var queryURL = 'http://download.finance.yahoo.com/d/quotes.csv?s='+selectedSymbol+'&f=snl1d1t1c1p2mwvpj1&e=.csv';
             console.log("Loading stock details from "+queryURL);
             var response = new XMLHttpRequest();
             response.onreadystatechange = function() {
-                if (response.readyState == XMLHttpRequest.DONE) {
-                    refreshDetails(response.responseXML);
+                if (response.readyState === XMLHttpRequest.DONE) {
+                    refreshDetails(response.responseText);
                 }
             }
             
@@ -224,7 +225,7 @@ Page {
             console.log("Loading news from "+rssURL);
             var response = new XMLHttpRequest();
             response.onreadystatechange = function() {
-                if (response.readyState == XMLHttpRequest.DONE) {
+                if (response.readyState === XMLHttpRequest.DONE) {
                     refreshNewsModel(response.responseXML);
                 }
             }
@@ -233,69 +234,34 @@ Page {
             response.send();
         }//End of function loadNews()
         
-        function refreshDetails(responseXML){
-            if (!responseXML) return;
-            var xmlDoc = responseXML.documentElement;
-            var results = xmlDoc.firstChild;
-            
-            if (results) {
-                var quoteNodes = results.childNodes;
-                if (quoteNodes){
-                    if (quoteNodes.length === 0) {
-                        console.log("No results for stock quote details");
-                    }
-                    else{
-                        //We are only expecting one quote node per symbol.
-                        var quoteElements = quoteNodes[0].childNodes;
-                        var j = 0;
-                        var lastTradedDate = "", lastTradedTime ="";
-                        for (j = 0; j < quoteElements.length; j++){
-                            
-                            if (quoteElements[j].childNodes[0]) {
-                                switch (quoteElements[j].nodeName){
-                                    case 'Name':
-                                        stockName = quoteElements[j].childNodes[0].nodeValue;
-                                        break;
-                                    case 'LastTradePriceOnly':
-                                        lastTradedPrice = quoteElements[j].childNodes[0].nodeValue;
-                                        break;
-                                    case 'LastTradeDate':
-                                        lastTradedDate = quoteElements[j].childNodes[0].nodeValue;
-                                        break;
-                                    case 'LastTradeTime':
-                                        lastTradedTime = quoteElements[j].childNodes[0].nodeValue;
-                                        break;
-                                    case 'Change':
-                                        change = quoteElements[j].childNodes[0].nodeValue;
-                                        break;
-                                    case 'ChangeinPercent':
-                                        changePercentage = quoteElements[j].childNodes[0].nodeValue;
-                                        break;
-                                    case 'DaysRange':
-                                        daysRange = quoteElements[j].childNodes[0].nodeValue;
-                                        break;
-                                    case 'YearRange':
-                                        yearRange = quoteElements[j].childNodes[0].nodeValue;
-                                        break;
-                                    case 'Volume':
-                                        marketVolume = quoteElements[j].childNodes[0].nodeValue;
-                                        break;
-                                    case 'PreviousClose':
-                                        prevClose = quoteElements[j].childNodes[0].nodeValue;
-                                        break;
-                                    case 'MarketCapitalization':
-                                        marketCap = quoteElements[j].childNodes[0].nodeValue;
-                                        break;
-                                    default:
-                                } //End of switch
-                            } //End of if (quoteElements[j].childNodes[0])
-                        }// End of for
+        function refreshDetails(responseText){
+            if (!responseText) {
+                console.log("No responseText for quote "+symbol);
+                return;
+            }
                         
-                        if (lastTradedDate !== "") lastTradedDateTime = lastTradedDate + " " + lastTradedTime;
-                    }//End of else
-                }//End of if (quoteNodes)
-            }//End of if (results) 
-        }//End of function refreshDetails(responseXML)
+            var quoteDetails = CSVUtility.csvToArray(responseText.trim());
+            if (quoteDetails && quoteDetails.length > 0){
+                //We are only expecting one quote row per symbol.
+                //snl1d1t1c1p2mwvpj1
+                var lastTradedDate = "", lastTradedTime ="";
+                stockName = quoteDetails[0][1];
+                lastTradedPrice = quoteDetails[0][2];
+                lastTradedDate = quoteDetails[0][3];
+                lastTradedTime = quoteDetails[0][4];
+                change = quoteDetails[0][5];
+                changePercentage = quoteDetails[0][6];
+                daysRange = quoteDetails[0][7];
+                yearRange = quoteDetails[0][8];
+                marketVolume = quoteDetails[0][9];
+                prevClose = quoteDetails[0][10];
+                marketCap = quoteDetails[0][11];
+                if (lastTradedDate !== "") lastTradedDateTime = lastTradedDate + " " + lastTradedTime;
+            }
+            else {
+                console.log("No results for stock quote details");
+            }
+        }//End of function refreshDetails(responseText)
         
         function refreshNewsModel(responseXML){
             if (!(responseXML && stockNewsDataModel)) return;
