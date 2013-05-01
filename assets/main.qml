@@ -1,5 +1,5 @@
 /*
-@version: 1.0.0
+@version: 1.1.0
 @author: Sudheer K. <scifi1947 at gmail.com>
 @license: GNU General Public License
 */
